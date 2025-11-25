@@ -10,40 +10,71 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
         
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; -webkit-tap-highlight-color: transparent; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
         
+        /* Transitions */
+        .trans-all { transition: all 0.2s ease-in-out; }
+        
+        .sidebar-link {
+            border-radius: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
         .sidebar-link.active {
-            background-color: #0f172a;
+            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
             color: #ffffff;
-            border-left: 4px solid #10b981;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         .sidebar-link:hover:not(.active) {
             background-color: #e2e8f0;
             color: #0f172a;
+            transform: translateX(4px);
         }
 
         .mobile-nav-item.active {
-            color: #10b981;
+            color: #059669;
+            background-color: #ecfdf5;
+            border-radius: 12px;
         }
         .mobile-nav-item {
             color: #64748b;
+            transition: all 0.2s;
         }
         
-        .card-shadow { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); }
+        .card-shadow { 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); 
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
         .input-base {
-            @apply w-full rounded-md border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 border;
+            @apply w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3 border transition-colors bg-white;
         }
+
+        /* Animated Turbine */
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spin-slow { animation: spin 8s linear infinite; }
         
-        /* Mobile optimizations */
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+        /* Custom Gradients */
+        .bg-gradient-brand { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .bg-gradient-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        .bg-gradient-violet { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+        .bg-gradient-amber { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .bg-gradient-rose { background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); }
+        .bg-gradient-dark { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
     </style>
 </head>
 <body>
@@ -52,10 +83,11 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- Icon System ---
+        // --- Expanded Icon System ---
         const Icon = ({ name, size = 20, className = "" }) => {
             const icons = {
-                wind: <><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2" /><path d="M9.6 4.6A2 2 0 1 1 11 8H2" /><path d="M12.6 19.4A2 2 0 1 0 14 16H2" /></>,
+                wind: <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" />,
+                turbine: <path d="M2 12h20M12 2v20M12 12 4.93 4.93M12 12l7.07 7.07M12 12l7.07-7.07M12 12 4.93 19.07" />, // Simplified star/turbine
                 dashboard: <><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></>,
                 calendar: <><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></>,
                 zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
@@ -70,7 +102,13 @@
                 gavel: <><path d="m14 13-7.5 7.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L11 10" /><path d="m16 16 6-6" /><path d="m8 8 6-6" /><path d="m9 7 8 8" /><path d="m21 11-8-8" /></>,
                 download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></>,
                 menu: <><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></>,
-                book: <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></>
+                book: <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></>,
+                mapPin: <><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></>,
+                shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />,
+                target: <><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></>,
+                money: <><rect width="20" height="12" x="2" y="6" rx="2" /><circle cx="12" cy="12" r="2" /><path d="M6 12h.01M18 12h.01" /></>,
+                clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
+                checkCircle: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>
             };
             
             return (
@@ -89,7 +127,6 @@
                 let count = 0;
                 while (count < days) {
                     result.setDate(result.getDate() + 1);
-                    // 0 = Sun, 6 = Sat. Skip if weekend.
                     if (result.getDay() !== 0 && result.getDay() !== 6) {
                         count++;
                     }
@@ -99,14 +136,14 @@
         };
 
         // --- Data Warehouse ---
-        const START_DATE = new Date("2025-11-24"); // Set default to Nov 24, 2025
+        const START_DATE = new Date("2025-11-24"); 
 
         const timelineDetails = [
             { step: 1, activity: "Publication of Notice of Auction (NOA) & TOR", day: "D1", type: "Publication", phase: "Pre-Auction", date: addDays(START_DATE, 0, 'CD') },
             { step: 2, activity: "Release by ERC of GEAR Price and REPA", day: "D1 + 30 CD", type: "Pricing", phase: "Pre-Auction", date: addDays(START_DATE, 30, 'CD') },
             { step: 3, activity: "Start of Registration of Qualified Suppliers", day: "D1 + 30 WD", type: "Registration", phase: "Registration", date: addDays(START_DATE, 30, 'WD') },
             { step: 4, activity: "Last day of Registration", day: "D31 + 3 WD", type: "Registration", phase: "Registration", date: addDays(START_DATE, 30 + 3, 'WD') },
-            { step: 5, activity: "Evaluation of Registration Documents", day: "D34 + 10 WD", type: "Evaluation", phase: "Evaluation", date: addDays(START_DATE, 43, 'WD') }, // Approx cumulative
+            { step: 5, activity: "Evaluation of Registration Documents", day: "D34 + 10 WD", type: "Evaluation", phase: "Evaluation", date: addDays(START_DATE, 43, 'WD') }, 
             { step: 13, activity: "Posting of List of Qualified Bidders", day: "D148 + 1 WD", type: "Publication", phase: "Evaluation", date: addDays(START_DATE, 149, 'WD') },
             { step: 17, activity: "Pre-Bid Conference", day: "D157 + 1 WD", type: "Meeting", phase: "Pre-Bid", date: addDays(START_DATE, 158, 'WD') },
             { step: 19, activity: "Submission of Proof of Posting of Bid Bond", day: "D164 + 10 WD", type: "Financial", phase: "Auction", date: addDays(START_DATE, 174, 'WD') },
@@ -116,15 +153,15 @@
         ];
 
         const gridCapacityData = [
-            { region: "Luzon", sub: "Castillejos 230 kV", y2024: 0, y2026: 190, y2028: 590, y2030: 590 },
-            { region: "Luzon", sub: "Bataoan 500 kV", y2024: 0, y2026: 0, y2028: 2000, y2030: 2000 },
-            { region: "Luzon", sub: "Laoag 500/230 kV", y2024: 0, y2026: 0, y2028: 1850, y2030: 1850 },
-            { region: "Luzon", sub: "Tuy 230 kV", y2024: 0, y2026: 1070, y2028: 1070, y2030: 1070 },
-            { region: "Visayas", sub: "Corella 230 kV", y2024: 0, y2026: 0, y2028: 600, y2030: 600 },
-            { region: "Visayas", sub: "Dumanjug 230 kV", y2024: 0, y2026: 0, y2028: 300, y2030: 300 },
-            { region: "Visayas", sub: "Umapad 230 kV", y2024: 0, y2026: 0, y2028: 600, y2030: 600 },
-            { region: "Mindanao", sub: "Toril 230 kV", y2024: 300, y2026: 300, y2028: 300, y2030: 300 },
-            { region: "Mindanao", sub: "Laguindingan 230 kV", y2024: 0, y2026: 300, y2028: 300, y2030: 300 },
+            { region: "Luzon", sub: "Castillejos 230 kV", y2024: 0, y2026: 190, y2028: 590, y2030: 590, color: "bg-blue-100 text-blue-800" },
+            { region: "Luzon", sub: "Bataoan 500 kV", y2024: 0, y2026: 0, y2028: 2000, y2030: 2000, color: "bg-blue-100 text-blue-800" },
+            { region: "Luzon", sub: "Laoag 500/230 kV", y2024: 0, y2026: 0, y2028: 1850, y2030: 1850, color: "bg-blue-100 text-blue-800" },
+            { region: "Luzon", sub: "Tuy 230 kV", y2024: 0, y2026: 1070, y2028: 1070, y2030: 1070, color: "bg-blue-100 text-blue-800" },
+            { region: "Visayas", sub: "Corella 230 kV", y2024: 0, y2026: 0, y2028: 600, y2030: 600, color: "bg-amber-100 text-amber-800" },
+            { region: "Visayas", sub: "Dumanjug 230 kV", y2024: 0, y2026: 0, y2028: 300, y2030: 300, color: "bg-amber-100 text-amber-800" },
+            { region: "Visayas", sub: "Umapad 230 kV", y2024: 0, y2026: 0, y2028: 600, y2030: 600, color: "bg-amber-100 text-amber-800" },
+            { region: "Mindanao", sub: "Toril 230 kV", y2024: 300, y2026: 300, y2028: 300, y2030: 300, color: "bg-rose-100 text-rose-800" },
+            { region: "Mindanao", sub: "Laguindingan 230 kV", y2024: 0, y2026: 300, y2028: 300, y2030: 300, color: "bg-rose-100 text-rose-800" },
         ];
 
         const legalProvisions = [
@@ -133,25 +170,26 @@
             { title: "GET Entitlement", section: "TOR Sec 1.4.3", text: "GET payment commences upon effectivity of COC/PAO. Delay penalties apply for late DCD.", severity: "info" },
             { title: "Tie-Breaker Rule", section: "TOR Sec 8.2.3.1", text: "In case of price ties, bids are ranked by timestamp (earlier timestamp first).", severity: "info" },
             { title: "Step-In Rights", section: "Annex F Sec 4", text: "Lenders may designate an Assignee to assume the WESC in case of RE Developer default.", severity: "info" },
-            { title: "Grid Advancement", section: "Annex D9.2", text: "Developer must undertake to advance grid connection construction if SIS timeline > DCD.", severity: "warning" }
+            { title: "Grid Advancement", section: "Annex D9.2", text: "Developer must undertake to advance grid connection construction if SIS timeline > DCD.", severity: "warning" },
+            { title: "Failure to Deliver", section: "Annex C Sec 1.8", text: "Failure to deliver committed capacity is a prohibited act subject to penalties under EPIRA.", severity: "critical" }
         ];
 
         const checklistData = [
-            { id: "req1", text: "Registration Form (Annex D1)", category: "Registration", source: "Annex D1" },
-            { id: "req2", text: "Letter of Intent (Annex D2)", category: "Registration", source: "Annex D2" },
-            { id: "req3", text: "Affidavit: No Legal Impediment (Annex D3)", category: "Legal", source: "Annex D3" },
-            { id: "req9", text: "Secretary's Certificate (Annex D4)", category: "Legal", source: "Annex D4" },
-            { id: "req10", text: "Board Resolution (Annex D5)", category: "Legal", source: "Annex D5" },
-            { id: "req13", text: "Supplemental WESC Template (Annex F)", category: "Legal", source: "Annex F" },
-            { id: "req4", text: "System Impact Study (SIS) by NGCP", category: "Technical", source: "TOR Sec 2.2.2.4" },
-            { id: "req14", text: "Affidavit: Grid Advancement (Annex D9.2)", category: "Technical", source: "Annex D9.2" },
-            { id: "req6", text: "Wind Resource Assessment Report (Annex D8.1)", category: "Technical", source: "Annex D8.1" },
-            { id: "req11", text: "Affidavit of Undertaking - WRA (Annex D8)", category: "Technical", source: "Annex D8" },
-            { id: "req7", text: "OSW Infrastructure Plan (Annex D9)", category: "Infrastructure", source: "Annex D9" },
-            { id: "req15", text: "5-Year Work Program (Annex D9.1)", category: "Infrastructure", source: "Annex D9.1" },
-            { id: "req16", text: "Letter of Conformity: Ports (Annex H)", category: "Infrastructure", source: "Annex H" },
-            { id: "req8", text: "Proof of Posting of Bid Bond", category: "Financial", source: "TOR Sec 5.1.1" },
-            { id: "req12", text: "Affidavit: Deliver on Committed Date (Annex D7)", category: "Post-Auction", source: "Annex D7" },
+            { id: "req1", text: "Registration Form (Annex D1)", category: "Registration", source: "Annex D1", color: "bg-indigo-100 text-indigo-700" },
+            { id: "req2", text: "Letter of Intent (Annex D2)", category: "Registration", source: "Annex D2", color: "bg-indigo-100 text-indigo-700" },
+            { id: "req3", text: "Affidavit: No Legal Impediment (Annex D3)", category: "Legal", source: "Annex D3", color: "bg-rose-100 text-rose-700" },
+            { id: "req9", text: "Secretary's Certificate (Annex D4)", category: "Legal", source: "Annex D4", color: "bg-rose-100 text-rose-700" },
+            { id: "req10", text: "Board Resolution (Annex D5)", category: "Legal", source: "Annex D5", color: "bg-rose-100 text-rose-700" },
+            { id: "req13", text: "Supplemental WESC Template (Annex F)", category: "Legal", source: "Annex F", color: "bg-rose-100 text-rose-700" },
+            { id: "req4", text: "System Impact Study (SIS) by NGCP", category: "Technical", source: "TOR Sec 2.2.2.4", color: "bg-cyan-100 text-cyan-700" },
+            { id: "req14", text: "Affidavit: Grid Advancement (Annex D9.2)", category: "Technical", source: "Annex D9.2", color: "bg-cyan-100 text-cyan-700" },
+            { id: "req6", text: "Wind Resource Assessment Report (Annex D8.1)", category: "Technical", source: "Annex D8.1", color: "bg-cyan-100 text-cyan-700" },
+            { id: "req11", text: "Affidavit of Undertaking - WRA (Annex D8)", category: "Technical", source: "Annex D8", color: "bg-cyan-100 text-cyan-700" },
+            { id: "req7", text: "OSW Infrastructure Plan (Annex D9)", category: "Infrastructure", source: "Annex D9", color: "bg-amber-100 text-amber-700" },
+            { id: "req15", text: "5-Year Work Program (Annex D9.1)", category: "Infrastructure", source: "Annex D9.1", color: "bg-amber-100 text-amber-700" },
+            { id: "req16", text: "Letter of Conformity: Ports (Annex H)", category: "Infrastructure", source: "Annex H", color: "bg-amber-100 text-amber-700" },
+            { id: "req8", text: "Proof of Posting of Bid Bond", category: "Financial", source: "TOR Sec 5.1.1", color: "bg-emerald-100 text-emerald-700" },
+            { id: "req12", text: "Affidavit: Deliver on Committed Date (Annex D7)", category: "Post-Auction", source: "Annex D7", color: "bg-slate-100 text-slate-700" },
         ];
 
         // --- Layout Components ---
@@ -159,9 +197,11 @@
         const SidebarItem = ({ id, icon, label, active, onClick }) => (
             <button 
                 onClick={() => onClick(id)}
-                className={`sidebar-link w-full flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-200 ${active ? 'active' : 'text-slate-500'}`}
+                className={`sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold trans-all ${active ? 'active' : 'text-slate-500 hover:text-slate-900'}`}
             >
-                <Icon name={icon} size={18} />
+                <div className={`${active ? 'text-white' : 'text-slate-400'}`}>
+                    <Icon name={icon} size={20} />
+                </div>
                 {label}
             </button>
         );
@@ -169,84 +209,120 @@
         const MobileNavItem = ({ id, icon, label, active, onClick }) => (
             <button 
                 onClick={() => onClick(id)}
-                className={`flex flex-col items-center justify-center w-full py-2 ${active ? 'mobile-nav-item active' : 'mobile-nav-item'}`}
+                className={`flex flex-col items-center justify-center w-full py-2 px-1 ${active ? 'mobile-nav-item active' : 'mobile-nav-item'}`}
             >
-                <Icon name={icon} size={20} />
-                <span className="text-[10px] mt-1 font-medium">{label}</span>
+                <Icon name={icon} size={22} className="mb-0.5"/>
+                <span className="text-[9px] font-bold uppercase tracking-wide">{label}</span>
             </button>
         );
 
-        const StatCard = ({ label, value, sub, color = "emerald" }) => (
-            <div className="bg-white rounded-xl card-shadow p-6 border-l-4 border-emerald-500">
-                <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">{label}</div>
-                <div className="text-2xl md:text-3xl font-bold text-slate-900 mb-1">{value}</div>
-                {sub && <div className="text-xs text-slate-400 font-mono">{sub}</div>}
+        const StatCard = ({ label, value, sub, icon, gradient = "bg-gradient-to-br from-emerald-400 to-emerald-600" }) => (
+            <div className="bg-white rounded-2xl card-shadow card-hover p-6 relative overflow-hidden group">
+                <div className={`absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 trans-all group-hover:scale-110`}>
+                    <Icon name={icon} size={80} />
+                </div>
+                <div className="flex items-start gap-4 relative z-10">
+                    <div className={`p-3 rounded-xl shadow-lg text-white ${gradient}`}>
+                        <Icon name={icon} size={24} />
+                    </div>
+                    <div>
+                        <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{label}</div>
+                        <div className="text-2xl font-bold text-slate-900 leading-tight">{value}</div>
+                        {sub && <div className="text-xs text-slate-400 font-mono mt-1 font-medium">{sub}</div>}
+                    </div>
+                </div>
+            </div>
+        );
+
+        const SectionHeader = ({ title, subtitle, icon, color = "text-slate-800" }) => (
+            <div className="mb-6">
+                <h2 className={`text-2xl font-bold ${color} flex items-center gap-2`}>
+                   {icon && <Icon name={icon} className="opacity-75"/>} {title}
+                </h2>
+                {subtitle && <p className="text-slate-500 text-sm mt-1 ml-1">{subtitle}</p>}
             </div>
         );
 
         // --- Feature Components ---
 
         const Dashboard = () => (
-            <div className="space-y-6 pb-20">
+            <div className="space-y-8 pb-24">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard label="Installation Target" value="3,300 MW" sub="2028 - 2030 Period" />
-                    <StatCard label="Bid Bond Rate" value="₱100k" sub="Per Megawatt (MW)" />
-                    <StatCard label="Perf. Bond Rate" value="2%" sub="Of Project Cost" />
-                    <StatCard label="Timeline Start" value="Nov 24, 2025" sub="Official Publication" />
+                    <StatCard label="Installation Target" value="3,300 MW" sub="2028 - 2030 Period" icon="target" gradient="bg-gradient-brand" />
+                    <StatCard label="Bid Bond Rate" value="₱100k" sub="Per Megawatt (MW)" icon="money" gradient="bg-gradient-blue" />
+                    <StatCard label="Perf. Bond Rate" value="2%" sub="Of Project Cost" icon="shield" gradient="bg-gradient-violet" />
+                    <StatCard label="Timeline Start" value="Nov 24" sub="2025 (Official)" icon="clock" gradient="bg-gradient-amber" />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 bg-white rounded-xl card-shadow p-6">
+                    <div className="lg:col-span-2 bg-white rounded-2xl card-shadow p-6">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                <Icon name="alert" className="text-amber-500"/> Critical Notices
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
+                                <div className="bg-rose-100 text-rose-500 p-2 rounded-lg"><Icon name="gavel" size={20}/></div>
+                                Legal & Critical Notices
                             </h3>
-                            <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded font-semibold">Action Required</span>
+                            <span className="text-xs bg-rose-50 text-rose-600 border border-rose-100 px-3 py-1 rounded-full font-bold uppercase tracking-wider">Action Items</span>
                         </div>
-                        <div className="space-y-4">
-                            {legalProvisions.filter(p => p.severity === "critical").map((item, i) => (
-                                <div key={i} className="p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
-                                    <div className="flex justify-between items-start">
-                                        <h4 className="font-bold text-red-900 text-sm">{item.title}</h4>
-                                        <span className="text-xs font-mono text-red-700 bg-red-100 px-2 py-0.5 rounded">{item.section}</span>
+                        <div className="space-y-3">
+                            {legalProvisions.map((item, i) => {
+                                const isCrit = item.severity === "critical";
+                                const isWarn = item.severity === "warning";
+                                const bg = isCrit ? "bg-rose-50 border-rose-200" : isWarn ? "bg-amber-50 border-amber-200" : "bg-blue-50 border-blue-200";
+                                const text = isCrit ? "text-rose-900" : isWarn ? "text-amber-900" : "text-blue-900";
+                                const iconColor = isCrit ? "text-rose-500" : isWarn ? "text-amber-500" : "text-blue-500";
+                                
+                                return (
+                                    <div key={i} className={`p-4 rounded-xl border ${bg} hover:shadow-sm trans-all`}>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h4 className={`font-bold ${text} text-sm flex items-center gap-2`}>
+                                                <Icon name={isCrit ? "alert" : "fileText"} size={16} className={iconColor} />
+                                                {item.title}
+                                            </h4>
+                                            <span className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-white/50 ${text}`}>{item.section}</span>
+                                        </div>
+                                        <p className={`text-sm ${text} opacity-90 leading-relaxed`}>{item.text}</p>
                                     </div>
-                                    <p className="text-sm text-red-800 mt-1">{item.text}</p>
-                                </div>
-                            ))}
-                            <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
-                                <div className="flex justify-between items-start">
-                                    <h4 className="font-bold text-blue-900 text-sm">Supplemental WESC Required</h4>
-                                    <span className="text-xs font-mono text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Annex F</span>
-                                </div>
-                                <p className="text-sm text-blue-800 mt-1">Winning bidders must execute a Supplemental WESC incorporating Lender Step-In Rights post-award.</p>
-                            </div>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl card-shadow p-6">
-                        <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <Icon name="anchor" className="text-blue-500"/> Port Availability
-                        </h3>
-                        <div className="space-y-4">
-                            <div className="p-4 rounded-lg border border-slate-200 hover:border-blue-400 transition-colors cursor-pointer group">
-                                <div className="flex justify-between items-center">
-                                    <span className="font-bold text-slate-700">Pambujan Port</span>
-                                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    <div className="space-y-6">
+                        <div className="bg-white rounded-2xl card-shadow p-6">
+                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg">
+                                <div className="bg-blue-100 text-blue-500 p-2 rounded-lg"><Icon name="anchor" size={20}/></div>
+                                Port Status
+                            </h3>
+                            <div className="space-y-3">
+                                <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer group">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="font-bold text-slate-800">Pambujan Port</span>
+                                        <span className="flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                                    </div>
+                                    <div className="text-xs text-slate-500 flex items-center gap-1"><Icon name="mapPin" size={12}/> Mercedes, Cam. Norte</div>
                                 </div>
-                                <div className="text-xs text-slate-500 mt-1">Mercedes, Camarines Norte</div>
-                                <div className="mt-2 text-xs font-medium text-blue-600 group-hover:underline">View Queuing Order →</div>
+                                <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer group">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="font-bold text-slate-800">Sta. Clara Port</span>
+                                        <span className="flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                                    </div>
+                                    <div className="text-xs text-slate-500 flex items-center gap-1"><Icon name="mapPin" size={12}/> Batangas City</div>
+                                </div>
                             </div>
-                            <div className="p-4 rounded-lg border border-slate-200 hover:border-blue-400 transition-colors cursor-pointer group">
-                                <div className="flex justify-between items-center">
-                                    <span className="font-bold text-slate-700">Sta. Clara Port</span>
-                                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                </div>
-                                <div className="text-xs text-slate-500 mt-1">Batangas City, Batangas</div>
-                                <div className="mt-2 text-xs font-medium text-blue-600 group-hover:underline">View Queuing Order →</div>
+                            <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-center text-slate-400 font-medium">
+                                * PPA Queuing System Active
                             </div>
                         </div>
-                        <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
-                            * Usage subject to Letter of Conformity (Annex H)
+
+                        <div className="bg-gradient-dark rounded-2xl p-6 text-white card-shadow relative overflow-hidden">
+                            <div className="absolute -bottom-6 -right-6 text-white opacity-5">
+                                <Icon name="wind" size={150} />
+                            </div>
+                            <h3 className="font-bold text-lg mb-2 relative z-10">Need Assistance?</h3>
+                            <p className="text-sm text-slate-300 mb-4 relative z-10">Access the Help Center for tutorials on the 100MW cap and GEA-5 bidding rules.</p>
+                            <button className="w-full py-2 bg-white text-slate-900 rounded-lg text-sm font-bold hover:bg-emerald-400 transition-colors relative z-10">
+                                Open Help Center
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -260,84 +336,83 @@
                 (filterRegion === "All" || item.region === filterRegion)
             );
 
-            const getTotal = (yearKey) => filtered.reduce((acc, curr) => acc + curr[yearKey], 0);
-
             return (
-                <div className="space-y-6 pb-20">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div>
-                            <h2 className="text-2xl font-bold text-slate-800">Grid Capacity</h2>
-                            <p className="text-slate-500 text-sm mt-1">Data Source: Annex E (NGCP)</p>
-                        </div>
-                        <div className="flex gap-2 overflow-x-auto pb-2 w-full sm:w-auto">
-                            {["All", "Luzon", "Visayas", "Mindanao"].map(r => (
-                                <button 
-                                    key={r}
-                                    onClick={() => setFilterRegion(r)}
-                                    className={`whitespace-nowrap px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterRegion === r ? 'bg-slate-800 text-white' : 'bg-white border border-slate-300 text-slate-600'}`}
-                                >
-                                    {r}
-                                </button>
-                            ))}
-                        </div>
+                <div className="space-y-6 pb-24">
+                    <SectionHeader title="Grid Capacity" subtitle="Data Source: Annex E (NGCP)" icon="zap" />
+
+                    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                        {["All", "Luzon", "Visayas", "Mindanao"].map(r => (
+                            <button 
+                                key={r}
+                                onClick={() => setFilterRegion(r)}
+                                className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold transition-all ${filterRegion === r ? 'bg-slate-800 text-white shadow-lg transform scale-105' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                            >
+                                {r}
+                            </button>
+                        ))}
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 bg-white rounded-xl card-shadow overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
-                                        <tr>
-                                            <th className="px-6 py-4">Region</th>
-                                            <th className="px-6 py-4 min-w-[200px]">Substation / Point</th>
-                                            <th className="px-6 py-4 text-right">2026</th>
-                                            <th className="px-6 py-4 text-right">2028</th>
-                                            <th className="px-6 py-4 text-right">2030</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {filtered.map((row, i) => (
-                                            <tr key={i} className="hover:bg-slate-50">
-                                                <td className="px-6 py-3 font-medium text-slate-700">{row.region}</td>
-                                                <td className="px-6 py-3 text-slate-600">{row.sub}</td>
-                                                <td className="px-6 py-3 text-right font-mono text-slate-500">{row.y2026 > 0 ? row.y2026.toLocaleString() : "-"}</td>
-                                                <td className="px-6 py-3 text-right font-mono font-bold text-emerald-600">{row.y2028 > 0 ? row.y2028.toLocaleString() : "-"}</td>
-                                                <td className="px-6 py-3 text-right font-mono text-slate-800">{row.y2030 > 0 ? row.y2030.toLocaleString() : "-"}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                        {/* Mobile Card View for Data */}
+                        <div className="lg:col-span-2 space-y-4">
+                            {filtered.map((row, i) => (
+                                <div key={i} className="bg-white rounded-xl p-5 card-shadow hover:shadow-md transition-shadow">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-md ${row.color}`}>{row.region}</span>
+                                            <h3 className="font-bold text-slate-800 mt-2 text-lg">{row.sub}</h3>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-xs text-slate-400 uppercase font-bold">2028 Target</div>
+                                            <div className="text-xl font-bold text-emerald-600 font-mono">{row.y2028.toLocaleString()} <span className="text-sm text-slate-400">MW</span></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-3 gap-2 text-center text-sm bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">2026</div>
+                                            <div className="font-mono font-medium text-slate-700">{row.y2026 > 0 ? row.y2026 : "-"}</div>
+                                        </div>
+                                        <div className="border-x border-slate-200">
+                                            <div className="text-xs text-slate-400 mb-1">2028</div>
+                                            <div className="font-mono font-bold text-emerald-600">{row.y2028 > 0 ? row.y2028 : "-"}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">2030</div>
+                                            <div className="font-mono font-medium text-slate-700">{row.y2030 > 0 ? row.y2030 : "-"}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
                         <div className="space-y-6">
-                            <div className="bg-white rounded-xl card-shadow p-6">
-                                <h3 className="font-bold text-slate-800 mb-4">Capacity Trend (MW)</h3>
-                                <div className="space-y-4">
-                                    {['2024', '2026', '2028', '2030'].map(year => (
-                                        <div key={year}>
-                                            <div className="flex justify-between text-xs text-slate-500 mb-1">
-                                                <span>{year}</span>
-                                                <span>{getTotal(`y${year}`).toLocaleString()} MW</span>
+                            <div className="bg-white rounded-2xl card-shadow p-6">
+                                <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                                    <Icon name="trendingUp" className="text-blue-500" />
+                                    Visual Trends
+                                </h3>
+                                <div className="space-y-6">
+                                    {[
+                                        { year: '2024', val: 0, max: 2000 },
+                                        { year: '2026', val: 1490, max: 2000 },
+                                        { year: '2028', val: 8210, max: 10000 },
+                                        { year: '2030', val: 8210, max: 10000 }
+                                    ].map((d, i) => (
+                                        <div key={i}>
+                                            <div className="flex justify-between text-xs font-bold text-slate-500 mb-1">
+                                                <span>{d.year}</span>
+                                                <span>{d.val.toLocaleString()} MW</span>
                                             </div>
-                                            <div className="w-full bg-slate-100 rounded-full h-2">
+                                            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                                                 <div 
-                                                    className={`h-2 rounded-full ${year === '2028' ? 'bg-emerald-500' : 'bg-slate-400'}`} 
-                                                    style={{width: `${(getTotal(`y${year}`) / 15000) * 100}%`}}
+                                                    className={`h-full rounded-full ${d.year === '2028' || d.year === '2030' ? 'bg-gradient-brand' : 'bg-slate-300'}`} 
+                                                    style={{width: `${(d.val / 10000) * 100}%`}}
                                                 ></div>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                            </div>
-
-                            <div className="bg-red-50 border border-red-100 rounded-xl p-4">
-                                <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2 text-sm">
-                                    <Icon name="alert" size={16}/> Annex D9.2 Requirement
-                                </h3>
-                                <p className="text-xs text-red-800">
-                                    If the grid connection timeline in your System Impact Study (SIS) exceeds your committed Delivery Date (DCD), you must submit a <strong>Notarized Affidavit of Undertaking</strong> to advance the interconnection facilities.
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -360,30 +435,28 @@
             // GET
             const [dcdDate, setDcdDate] = useState("2029-03-30");
             const [codDate, setCodDate] = useState("2029-09-30");
-            const [delayReason, setDelayReason] = useState("fault"); // Default to fault, since "none" is calculated
+            const [delayReason, setDelayReason] = useState("fault"); 
 
-            // --- Basic Calculations ---
+            // Basic Calculations
             const bidBond = mw * 100000;
             const projectCost = mw * capex * 1000000;
             const perfBond = projectCost * 0.02;
             const fmt = (n) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(n);
 
-            // --- Marginal Logic (Sec 8.2.3) ---
-            const MARGINAL_BUFFER = 100; // MW
+            // Marginal Logic
+            const MARGINAL_BUFFER = 100; 
             const excess = bidCap - remTarget;
             const isMarginal = excess > 0;
             const withinBuffer = excess <= MARGINAL_BUFFER;
             const awardedMarginal = isMarginal ? (withinBuffer ? bidCap : remTarget + MARGINAL_BUFFER) : bidCap;
             const curtailedMarginal = bidCap - awardedMarginal;
 
-            // --- GET Logic (Sec 1.4.3 & 10.6.7.4) ---
+            // GET Logic
             const dcd = new Date(dcdDate);
             const cod = new Date(codDate);
             const diffTime = cod - dcd;
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
             const isDelayed = diffDays > 0;
-
             let penaltyRate = 0;
             let penaltyDesc = "No Penalty";
             let sdpStatus = "Full 20 Years";
@@ -391,81 +464,89 @@
             let isRevoked = false;
 
             if (!isDelayed) {
-                // COD before or equal to DCD
                 penaltyDesc = "None (Early/On-time)";
-                getStart = "Upon DCD (Paid Market Price prior to DCD)";
+                getStart = "Upon DCD (Market Price prior)";
             } else {
-                // Delay exists
                 if (delayReason === "forceMajeure") {
                     penaltyDesc = "None (Force Majeure)";
                     sdpStatus = "Full 20 Years (Extended)";
                     getStart = "Upon COD";
-                } else { // default to fault if not FM
+                } else { 
                     getStart = "Upon COD";
                     if (diffDays < 365) {
-                        penaltyRate = 0.05; // 1/20 of 1%
+                        penaltyRate = 0.05; 
                         penaltyDesc = "1/20 of 1% of PB per day";
                         sdpStatus = "Full 20 Years";
-                    } else if (diffDays < 1095) { // < 3 years
-                        penaltyRate = 0.1; // 1/10 of 1%
+                    } else if (diffDays < 1095) {
+                        penaltyRate = 0.1; 
                         penaltyDesc = "1/10 of 1% of PB per day";
                         sdpStatus = `Reduced by ${diffDays - 365} days`;
                     } else {
                         isRevoked = true;
                         penaltyDesc = "Full PB Forfeiture";
-                        sdpStatus = "Contract Revoked";
+                        sdpStatus = "Revoked";
                         getStart = "N/A";
                     }
                 }
             }
-
             const penaltyAmount = isRevoked ? perfBond : (perfBond * (penaltyRate / 100) * (diffDays > 0 ? diffDays : 0));
 
+            const ToolButton = ({ id, label, color }) => (
+                <button 
+                    onClick={() => setActiveTool(id)} 
+                    className={`px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap border ${activeTool === id ? `${color} text-white shadow-md border-transparent` : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                >
+                    {label}
+                </button>
+            );
+
             return (
-                <div className="pb-20">
-                    <div className="flex gap-4 mb-6 border-b border-slate-200 pb-2 overflow-x-auto">
-                        <button onClick={() => setActiveTool('basic')} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap ${activeTool === 'basic' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Basic Financials</button>
-                        <button onClick={() => setActiveTool('marginal')} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap ${activeTool === 'marginal' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Marginal Offer Check</button>
-                        <button onClick={() => setActiveTool('get')} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap ${activeTool === 'get' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>GET & Penalty Sim</button>
+                <div className="pb-24">
+                    <SectionHeader title="Financial Suite" subtitle="Simulate Bids, Bonds & Penalties" icon="calculator" />
+
+                    <div className="flex gap-3 mb-6 overflow-x-auto pb-2 no-scrollbar">
+                        <ToolButton id="basic" label="Basic Financials" color="bg-slate-800" />
+                        <ToolButton id="marginal" label="Marginal Offer" color="bg-emerald-600" />
+                        <ToolButton id="get" label="Penalty & GET" color="bg-indigo-600" />
                     </div>
 
                     {activeTool === 'basic' && (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="bg-white rounded-xl card-shadow p-6">
-                                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                    <Icon name="calculator" /> Project Parameters
+                            <div className="bg-white rounded-2xl card-shadow p-6">
+                                <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                                    <div className="bg-slate-100 p-2 rounded-lg text-slate-600"><Icon name="target" /></div>
+                                    Input Parameters
                                 </h3>
-                                <div className="space-y-4">
+                                <div className="space-y-5">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Offered Capacity (MW)</label>
-                                        <input type="number" value={mw} onChange={e => setMw(Number(e.target.value))} className="input-base" />
+                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Offered Capacity (MW)</label>
+                                        <input type="number" value={mw} onChange={e => setMw(Number(e.target.value))} className="input-base text-lg font-mono text-slate-700" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Est. Project Cost (PHP Million/MW)</label>
-                                        <input type="number" value={capex} onChange={e => setCapex(Number(e.target.value))} className="input-base" />
+                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Est. Project Cost (PHP M/MW)</label>
+                                        <input type="number" value={capex} onChange={e => setCapex(Number(e.target.value))} className="input-base text-lg font-mono text-slate-700" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bid Price (PHP/kWh)</label>
-                                        <input type="number" step="0.0001" value={bidPrice} onChange={e => setBidPrice(e.target.value)} className="input-base" />
+                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 ml-1">Bid Price (PHP/kWh)</label>
+                                        <input type="number" step="0.0001" value={bidPrice} onChange={e => setBidPrice(e.target.value)} className="input-base text-lg font-mono text-slate-700" />
                                     </div>
                                 </div>
                             </div>
-                            <div className="bg-slate-900 text-white rounded-xl card-shadow p-6 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-4 opacity-10">
-                                    <Icon name="fileText" size={100} />
+                            <div className="bg-gradient-dark text-white rounded-2xl card-shadow p-6 relative overflow-hidden flex flex-col justify-center">
+                                <div className="absolute top-0 right-0 p-8 opacity-5">
+                                    <Icon name="money" size={120} />
                                 </div>
-                                <h3 className="font-bold text-slate-300 mb-6">Bond Requirements</h3>
+                                <h3 className="font-bold text-slate-300 mb-6 relative z-10 border-b border-white/10 pb-2">Calculated Bond Requirements</h3>
                                 <div className="space-y-6 relative z-10">
                                     <div>
-                                        <div className="text-sm text-slate-400 uppercase tracking-wider">Bid Bond (Cash/Manager's Check)</div>
-                                        <div className="text-3xl font-bold text-emerald-400 mt-1">{fmt(bidBond)}</div>
-                                        <div className="text-xs text-slate-500 mt-1">Valid for 120 Days</div>
+                                        <div className="text-xs text-emerald-400 font-bold uppercase tracking-wider mb-1">Bid Bond (Cash/Check)</div>
+                                        <div className="text-4xl font-bold text-white tracking-tight">{fmt(bidBond)}</div>
+                                        <div className="text-xs text-slate-400 mt-1">Valid for 120 Days</div>
                                     </div>
-                                    <div className="w-full h-px bg-slate-700"></div>
                                     <div>
-                                        <div className="text-sm text-slate-400 uppercase tracking-wider">Performance Bond (2%)</div>
-                                        <div className="text-3xl font-bold text-white mt-1">{fmt(perfBond)}</div>
-                                        <div className="text-xs text-slate-500 mt-1">Based on Total Project Cost: {fmt(projectCost)}</div>
+                                        <div className="text-xs text-blue-400 font-bold uppercase tracking-wider mb-1">Performance Bond (2%)</div>
+                                        <div className="text-4xl font-bold text-white tracking-tight">{fmt(perfBond)}</div>
+                                        <div className="text-xs text-slate-400 mt-1">Based on Cost: {fmt(projectCost)}</div>
                                     </div>
                                 </div>
                             </div>
@@ -474,53 +555,47 @@
 
                     {activeTool === 'marginal' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-white rounded-xl card-shadow p-6 border-l-4 border-emerald-500">
-                                <h3 className="font-bold text-slate-800 mb-4">Marginal Offer Analysis</h3>
-                                <p className="text-xs text-slate-500 mb-4">Based on TOR Section 8.2.3.2. Checks if your bid fits within the remaining allocation plus the 100MW buffer.</p>
+                            <div className="bg-white rounded-2xl card-shadow p-6 border-l-4 border-emerald-500">
+                                <h3 className="font-bold text-slate-800 mb-2">Scenario Setup</h3>
+                                <p className="text-xs text-slate-500 mb-6">Sec 8.2.3.2: 100MW Cap Simulation</p>
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Remaining Auction Volume (MW)</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Remaining Volume</label>
                                         <input type="number" value={remTarget} onChange={e => setRemTarget(Number(e.target.value))} className="input-base" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Your Bid Size (MW)</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Your Bid Size</label>
                                         <input type="number" value={bidCap} onChange={e => setBidCap(Number(e.target.value))} className="input-base" />
                                     </div>
                                 </div>
                             </div>
-                            <div className="bg-white rounded-xl card-shadow p-6">
-                                <h3 className="font-bold text-slate-800 mb-6">Result</h3>
+                            <div className="bg-white rounded-2xl card-shadow p-6">
+                                <h3 className="font-bold text-slate-800 mb-6">Outcome</h3>
                                 <div className="space-y-4">
-                                    <div className="flex justify-between items-center pb-2 border-b">
-                                        <span className="text-slate-500 text-sm">Marginal Status</span>
-                                        <span className={`font-bold ${isMarginal ? 'text-amber-500' : 'text-emerald-600'}`}>
-                                            {isMarginal ? "Marginal Bid" : "Within Target"}
+                                    <div className="flex justify-between items-center p-3 rounded-lg bg-slate-50">
+                                        <span className="text-slate-500 text-sm font-medium">Status</span>
+                                        <span className={`font-bold px-3 py-1 rounded-full text-xs uppercase ${isMarginal ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                            {isMarginal ? "Marginal Bid" : "Accepted"}
                                         </span>
                                     </div>
-                                    {isMarginal && (
-                                        <>
-                                        <div className="flex justify-between items-center pb-2 border-b">
-                                            <span className="text-slate-500 text-sm">Excess over Target</span>
-                                            <span className="font-mono text-red-500">+{excess} MW</span>
+                                    {isMarginal ? (
+                                        <div className="space-y-3">
+                                            <div className="text-center py-4">
+                                                <div className="text-3xl font-bold text-emerald-600">{awardedMarginal} MW</div>
+                                                <div className="text-xs text-slate-400 uppercase font-bold mt-1">Accepted Capacity</div>
+                                            </div>
+                                            <div className="text-center py-2 border-t border-slate-100">
+                                                 <div className="text-xl font-bold text-rose-500">{curtailedMarginal} MW</div>
+                                                 <div className="text-xs text-slate-400 uppercase font-bold mt-1">Curtailed</div>
+                                            </div>
+                                            <div className={`text-xs p-3 rounded text-center font-medium ${withinBuffer ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                                {withinBuffer ? "Within 100MW Buffer. Accepted." : "Exceeds Buffer. Curtailment Required."}
+                                            </div>
                                         </div>
-                                        <div className="flex justify-between items-center pb-2 border-b">
-                                            <span className="text-slate-500 text-sm">Accepted Capacity</span>
-                                            <span className="font-bold text-emerald-600 text-xl">{awardedMarginal} MW</span>
-                                        </div>
-                                        <div className="flex justify-between items-center pb-2 border-b">
-                                            <span className="text-slate-500 text-sm">Curtailed/Rejected</span>
-                                            <span className="font-mono text-red-500">{curtailedMarginal} MW</span>
-                                        </div>
-                                        <div className="text-xs bg-slate-100 p-2 rounded text-slate-600 mt-2">
-                                            {withinBuffer 
-                                                ? "Passed: Excess is within the 100 MW Cap." 
-                                                : "Curtailed: Bid exceeds the 100 MW Cap. You must agree to reduce capacity to be accepted."}
-                                        </div>
-                                        </>
-                                    )}
-                                    {!isMarginal && (
-                                        <div className="text-center py-8 text-emerald-600 font-bold">
-                                            Bid is fully accepted within the Installation Target.
+                                    ) : (
+                                        <div className="text-center py-10 text-emerald-500 font-bold flex flex-col items-center gap-2">
+                                            <Icon name="checkCircle" size={40} />
+                                            <span>Full Capacity Accepted</span>
                                         </div>
                                     )}
                                 </div>
@@ -530,8 +605,8 @@
 
                     {activeTool === 'get' && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-1 bg-white rounded-xl card-shadow p-6">
-                                <h3 className="font-bold text-slate-800 mb-4">Scenario Inputs</h3>
+                            <div className="lg:col-span-1 bg-white rounded-2xl card-shadow p-6">
+                                <h3 className="font-bold text-slate-800 mb-4">Dates & Delays</h3>
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Committed DCD</label>
@@ -546,50 +621,45 @@
                                         {isDelayed ? (
                                             <select value={delayReason} onChange={e => setDelayReason(e.target.value)} className="input-base">
                                                 <option value="forceMajeure">Force Majeure (Sec 13)</option>
-                                                <option value="fault">Bidder Default (Sec 10.6.7.4)</option>
+                                                <option value="fault">Bidder Default (Sec 10.6)</option>
                                             </select>
                                         ) : (
-                                            <div className="input-base bg-slate-50 text-slate-500 italic flex items-center">
-                                                N/A (Project is On-Time/Early)
+                                            <div className="input-base bg-emerald-50 text-emerald-600 font-medium text-xs flex items-center gap-2">
+                                                <Icon name="checkCircle" size={14}/> On-Track / Early
                                             </div>
                                         )}
                                     </div>
-                                    <div className="pt-4 text-xs text-slate-400">
-                                        Assumed Perf. Bond: {fmt(perfBond)}
-                                    </div>
                                 </div>
                             </div>
-                            <div className="lg:col-span-2 bg-white rounded-xl card-shadow p-6">
+                            <div className="lg:col-span-2 bg-white rounded-2xl card-shadow p-6">
                                 <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
-                                    <Icon name="gavel" className="text-indigo-500" /> Impact Analysis (TOR Sec 1.4.3)
+                                    <div className="bg-indigo-100 text-indigo-600 p-2 rounded-lg"><Icon name="gavel" /></div>
+                                    Impact Analysis
                                 </h3>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 bg-slate-50 rounded-lg">
-                                        <div className="text-xs text-slate-500 uppercase font-bold">GET Entitlement</div>
-                                        <div className="font-bold text-slate-900 mt-1">{getStart}</div>
+                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="text-xs text-slate-400 uppercase font-bold">GET Start</div>
+                                        <div className="font-bold text-slate-900 mt-1 text-sm">{getStart}</div>
                                     </div>
-                                    <div className={`p-4 rounded-lg ${diffDays > 0 && delayReason === 'fault' ? 'bg-red-50' : 'bg-green-50'}`}>
-                                        <div className="text-xs text-slate-500 uppercase font-bold">Delay Duration</div>
-                                        <div className={`font-bold mt-1 ${diffDays > 0 ? 'text-red-700' : 'text-green-700'}`}>
-                                            {diffDays > 0 ? `${diffDays} Days Late` : "On Time / Early"}
+                                    <div className={`p-4 rounded-xl border ${isDelayed && delayReason === 'fault' ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                                        <div className={`text-xs uppercase font-bold ${isDelayed ? 'text-rose-400' : 'text-emerald-400'}`}>Delay Status</div>
+                                        <div className={`font-bold mt-1 text-lg ${isDelayed ? 'text-rose-700' : 'text-emerald-700'}`}>
+                                            {isDelayed ? `${diffDays} Days` : "None"}
                                         </div>
                                     </div>
-                                    <div className="p-4 bg-slate-50 rounded-lg">
-                                        <div className="text-xs text-slate-500 uppercase font-bold">Supply Delivery Period</div>
-                                        <div className="font-bold text-slate-900 mt-1">{sdpStatus}</div>
+                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="text-xs text-slate-400 uppercase font-bold">SDP Duration</div>
+                                        <div className="font-bold text-slate-900 mt-1 text-sm">{sdpStatus}</div>
                                     </div>
-                                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                                        <div className="text-xs text-slate-500 uppercase font-bold">Penalty / Bond Draw</div>
-                                        <div className="text-xs text-slate-500 mt-1">{penaltyDesc}</div>
-                                        {diffDays > 0 && delayReason === 'fault' && (
-                                            <div className="font-bold text-red-600 text-lg mt-1">
+                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="text-xs text-slate-400 uppercase font-bold">Penalty</div>
+                                        <div className="text-xs text-slate-600 mt-1 font-medium">{penaltyDesc}</div>
+                                        {isDelayed && delayReason === 'fault' && (
+                                            <div className="font-bold text-rose-600 text-lg mt-1">
                                                 {fmt(penaltyAmount)}
                                             </div>
                                         )}
                                     </div>
-                                </div>
-                                <div className="mt-4 text-xs text-slate-400 italic">
-                                    *Calculations based on 100MW example project. Actual penalty depends on specific bond amount.
                                 </div>
                             </div>
                         </div>
@@ -599,154 +669,128 @@
         };
 
         const WorkProgram = () => (
-            <div className="space-y-6 pb-20">
-                <div className="bg-white rounded-xl card-shadow p-6">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-6">
-                        <div>
-                            <h2 className="text-xl font-bold text-slate-800">5-Year Work Program</h2>
-                            <p className="text-sm text-slate-500">Minimum Durations (Annex D9.1)</p>
-                        </div>
-                        <div className="text-xs bg-blue-50 text-blue-800 px-3 py-1 rounded-full font-medium">Evaluation Matrix: Pass/Fail</div>
-                    </div>
-
-                    <div className="space-y-4 relative overflow-x-auto">
-                        <div className="min-w-[600px]">
-                            {/* Timeline Header */}
-                            <div className="grid grid-cols-12 gap-1 text-xs font-bold text-slate-400 uppercase mb-2">
-                                <div className="col-span-4 pl-2">Activity</div>
-                                <div className="col-span-8 flex justify-between px-2">
-                                    <span>Year 1</span>
-                                    <span>Year 2</span>
-                                    <span>Year 3</span>
-                                    <span>Year 4</span>
-                                    <span>Year 5</span>
+            <div className="space-y-6 pb-24">
+                <SectionHeader title="5-Year Work Program" subtitle="Annex D9.1 Visualization" icon="hardHat" />
+                
+                <div className="bg-white rounded-2xl card-shadow p-6">
+                   <div className="overflow-x-auto pb-4">
+                        <div className="min-w-[700px]">
+                            {/* Gantt Header */}
+                            <div className="grid grid-cols-12 gap-1 mb-4 border-b border-slate-100 pb-2">
+                                <div className="col-span-4 text-xs font-bold text-slate-400 uppercase pl-2">Activity Phase</div>
+                                <div className="col-span-8 flex justify-between px-2 text-xs font-bold text-slate-400 uppercase">
+                                    <span>Y1</span><span>Y2</span><span>Y3</span><span>Y4</span><span>Y5</span>
                                 </div>
                             </div>
 
-                            {/* Gantt Bars */}
+                            {/* Gantt Rows */}
                             {[
                                 { label: "Pre-Dev ECC", start: 0, width: 10, color: "bg-blue-400" },
-                                { label: "Wind Resource Assessment", start: 0, width: 20, color: "bg-blue-500" },
-                                { label: "System Impact Study (SIS)", start: 5, width: 15, color: "bg-indigo-500" },
-                                { label: "Dev Stage ECC", start: 10, width: 20, color: "bg-purple-500" },
-                                { label: "Detailed Engineering", start: 25, width: 15, color: "bg-pink-500" },
-                                { label: "Financial Close", start: 35, width: 10, color: "bg-rose-500" },
-                                { label: "Port Prep & Mobilization", start: 40, width: 10, color: "bg-amber-500" },
-                                { label: "Foundation Installation", start: 45, width: 30, color: "bg-emerald-500" },
-                                { label: "WTG Installation", start: 60, width: 30, color: "bg-emerald-600" },
-                                { label: "Commissioning & Testing", start: 85, width: 15, color: "bg-teal-500" },
+                                { label: "Wind Assessment", start: 0, width: 20, color: "bg-indigo-400" },
+                                { label: "System Impact Study", start: 5, width: 15, color: "bg-violet-400" },
+                                { label: "Dev Stage ECC", start: 10, width: 20, color: "bg-purple-400" },
+                                { label: "Detailed Eng.", start: 25, width: 15, color: "bg-fuchsia-400" },
+                                { label: "Financial Close", start: 35, width: 10, color: "bg-rose-400" },
+                                { label: "Port Mob.", start: 40, width: 10, color: "bg-amber-400" },
+                                { label: "Foundation Install", start: 45, width: 30, color: "bg-emerald-400" },
+                                { label: "WTG Install", start: 60, width: 30, color: "bg-emerald-500" },
+                                { label: "Commissioning", start: 85, width: 15, color: "bg-teal-400" },
                             ].map((item, i) => (
-                                <div key={i} className="grid grid-cols-12 gap-1 items-center hover:bg-slate-50 p-1 rounded transition-colors">
-                                    <div className="col-span-4 text-sm font-medium text-slate-700 truncate pr-4">{item.label}</div>
-                                    <div className="col-span-8 relative h-6 bg-slate-100 rounded overflow-hidden">
+                                <div key={i} className="grid grid-cols-12 gap-1 items-center mb-3 group">
+                                    <div className="col-span-4 text-xs font-medium text-slate-600 truncate pr-4 group-hover:text-slate-900 transition-colors">{item.label}</div>
+                                    <div className="col-span-8 relative h-8 bg-slate-50 rounded-lg overflow-hidden border border-slate-100">
                                         <div 
-                                            className={`absolute top-1 bottom-1 rounded ${item.color} opacity-80`}
+                                            className={`absolute top-1.5 bottom-1.5 rounded-md ${item.color} shadow-sm opacity-90 group-hover:opacity-100 transition-all`}
                                             style={{ left: `${item.start}%`, width: `${item.width}%` }}
                                         ></div>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    </div>
-                    <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-600 bg-slate-50 p-4 rounded-lg">
-                        <div>
-                            <strong className="block mb-1 text-slate-800">Logical Sequencing Requirements:</strong>
-                            <ul className="list-disc list-inside space-y-1">
-                                <li>ECC (Development) follows Pre-Dev ECC.</li>
-                                <li>Financial Close requires Building Permits.</li>
-                                <li>WTG Installation contingent on Foundation completion.</li>
-                            </ul>
-                        </div>
-                        <div>
-                            <strong className="block mb-1 text-slate-800">Critical Path:</strong>
-                            <p>Port Availability (PPA/Private) must align with foundation fabrication start.</p>
-                        </div>
-                    </div>
+                   </div>
+                   <div className="bg-slate-50 p-4 rounded-xl text-xs text-slate-500 border border-slate-200 mt-2">
+                        <strong className="text-slate-700">Note:</strong> Critical path assumes Port Availability aligns with Foundation Fabrication.
+                   </div>
                 </div>
             </div>
         );
 
         const Checklist = () => {
             return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
-                    {["Registration", "Technical", "Legal", "Financial"].map(cat => (
-                        <div key={cat} className="bg-white rounded-xl card-shadow p-6">
-                            <h3 className="font-bold text-slate-800 mb-4 border-b pb-2">{cat} Requirements</h3>
-                            <div className="space-y-3">
-                                {checklistData.filter(i => i.category === cat || (cat === "Legal" && i.category === "Post-Auction")).map(item => (
-                                    <label key={item.id} className="flex items-start gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer">
-                                        <input type="checkbox" className="mt-1 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-                                        <div>
-                                            <div className="text-sm font-medium text-slate-700">{item.text}</div>
-                                            <div className="text-xs text-slate-400 italic">{item.source}</div>
-                                        </div>
-                                    </label>
-                                ))}
+                <div className="pb-24">
+                     <SectionHeader title="Compliance Checklist" subtitle="Track your Annex submissions" icon="checkCircle" />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {["Registration", "Technical", "Legal", "Financial"].map(cat => (
+                            <div key={cat} className="bg-white rounded-2xl card-shadow p-5">
+                                <h3 className="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 text-sm uppercase tracking-wider">{cat}</h3>
+                                <div className="space-y-3">
+                                    {checklistData.filter(i => i.category === cat || (cat === "Legal" && i.category === "Post-Auction")).map(item => (
+                                        <label key={item.id} className="flex items-start gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-slate-200 group">
+                                            <div className="relative flex items-center">
+                                                <input type="checkbox" className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-slate-300 transition-all checked:border-emerald-500 checked:bg-emerald-500 hover:border-emerald-400" />
+                                                <div className="pointer-events-none absolute top-2/4 left-2/4 -translate-y-2/4 -translate-x-2/4 text-white opacity-0 transition-opacity peer-checked:opacity-100">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-medium text-slate-700 group-hover:text-slate-900">{item.text}</div>
+                                                <div className="flex gap-2 mt-1">
+                                                    <span className={`text-[10px] px-1.5 rounded font-bold ${item.color.replace('text-', 'bg-').replace('100', '50')} ${item.color.split(' ')[1]}`}>{item.source}</span>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             );
         }
 
         const TORGuide = () => (
-            <div className="space-y-6 pb-20">
-                <div className="bg-white rounded-xl card-shadow p-6">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="bg-slate-900 text-white p-2 rounded-lg">
-                            <Icon name="book" size={24} />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-slate-800">Terms of Reference (TOR) Structure</h2>
-                            <p className="text-sm text-slate-500">Green Energy Auction - 5</p>
-                        </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {[
-                            { id: "A", title: "Auction Design", desc: "Mechanism, rules, and procedures." },
-                            { id: "B", title: "Bonds", desc: "Templates for Bid & Performance Bonds." },
-                            { id: "C", title: "Instruction to Bidders", desc: "Detailed guidelines for participation." },
-                            { id: "D", title: "Bidding Data & Forms", desc: "Registration forms, Affidavits (D1-D9)." },
-                            { id: "E", title: "Grid Capacity", desc: "Available transmission capacity 2024-2030." },
-                            { id: "F", title: "Contract Templates", desc: "WESC/OsWESC and Step-In Rights." },
-                            { id: "G", title: "Port Availability", desc: "List of PPA-administered ports." },
-                            { id: "H", title: "Port Conformity", desc: "Template for Queuing Order agreement." }
-                        ].map(annex => (
-                            <div key={annex.id} className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Annex {annex.id}</span>
-                                <h3 className="font-bold text-slate-800 mt-2">{annex.title}</h3>
-                                <p className="text-xs text-slate-500 mt-1">{annex.desc}</p>
+            <div className="space-y-6 pb-24">
+                <SectionHeader title="Reference Guide" subtitle="Terms of Reference (TOR) GEA-5" icon="book" />
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                        { id: "A", title: "Auction Design", icon: "target", color: "text-blue-500 bg-blue-50" },
+                        { id: "B", title: "Bonds", icon: "shield", color: "text-emerald-500 bg-emerald-50" },
+                        { id: "C", title: "Instructions", icon: "fileText", color: "text-amber-500 bg-amber-50" },
+                        { id: "D", title: "Forms", icon: "fileText", color: "text-violet-500 bg-violet-50" },
+                        { id: "E", title: "Grid Cap", icon: "zap", color: "text-cyan-500 bg-cyan-50" },
+                        { id: "F", title: "Contracts", icon: "gavel", color: "text-rose-500 bg-rose-50" },
+                        { id: "G", title: "Ports", icon: "anchor", color: "text-indigo-500 bg-indigo-50" },
+                        { id: "H", title: "Conformity", icon: "checkCircle", color: "text-slate-500 bg-slate-50" }
+                    ].map(annex => (
+                        <div key={annex.id} className="bg-white p-4 rounded-2xl card-shadow flex flex-col items-center justify-center text-center hover:scale-105 transition-transform cursor-pointer">
+                            <div className={`p-3 rounded-xl mb-3 ${annex.color}`}>
+                                <Icon name={annex.icon} size={24} />
                             </div>
-                        ))}
-                    </div>
+                            <div className="font-bold text-slate-800 text-sm">Annex {annex.id}</div>
+                            <div className="text-xs text-slate-400 mt-1">{annex.title}</div>
+                        </div>
+                    ))}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white rounded-xl card-shadow p-6">
-                        <h3 className="font-bold text-slate-800 mb-4 border-b pb-2">Sec 8.2.3: Tie-Breakers</h3>
-                        <div className="space-y-4 text-sm text-slate-600">
-                            <div>
-                                <strong className="block text-slate-900">1. Timestamp Rule</strong>
-                                <p>If Price Offers are equal, the bid submitted earlier (based on timestamp) ranks higher.</p>
-                            </div>
-                            <div>
-                                <strong className="block text-slate-900">2. Marginal Offer Tie</strong>
-                                <p>If Marginal Offers are tied in Price AND Timestamp, capacity is distributed proportionately.</p>
-                            </div>
+                    <div className="bg-white rounded-2xl card-shadow p-6 border-t-4 border-blue-500">
+                        <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <Icon name="clock" className="text-blue-500"/> Tie-Breaker Rules
+                        </h3>
+                        <div className="space-y-4 text-sm text-slate-600 bg-slate-50 p-4 rounded-xl">
+                            <p><strong className="text-slate-900 block mb-1">1. Timestamp Rule</strong> Earlier timestamp wins if prices are equal.</p>
+                            <p><strong className="text-slate-900 block mb-1">2. Marginal Tie</strong> Proportional distribution of capacity.</p>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl card-shadow p-6">
-                        <h3 className="font-bold text-slate-800 mb-4 border-b pb-2">Sec 8.2.3: Marginal Offer</h3>
-                        <div className="space-y-4 text-sm text-slate-600">
-                            <div>
-                                <strong className="block text-slate-900">The 100 MW Cap Rule</strong>
-                                <p>The Installation Target may be exceeded by up to 100 MW to accommodate a Marginal Bid.</p>
-                            </div>
-                            <div>
-                                <strong className="block text-slate-900">Condition</strong>
-                                <p>If a bid exceeds this 100 MW buffer, it is only accepted if the bidder agrees to curtail their capacity to fit the buffer.</p>
-                            </div>
+                    <div className="bg-white rounded-2xl card-shadow p-6 border-t-4 border-amber-500">
+                        <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <Icon name="alert" className="text-amber-500"/> Marginal Offer
+                        </h3>
+                        <div className="space-y-4 text-sm text-slate-600 bg-slate-50 p-4 rounded-xl">
+                            <p><strong className="text-slate-900 block mb-1">100 MW Cap</strong> Installation Target allows +100MW buffer for marginal bids.</p>
+                            <p><strong className="text-slate-900 block mb-1">Curtailment</strong> Bidders must accept reduced capacity if exceeding buffer.</p>
                         </div>
                     </div>
                 </div>
@@ -759,47 +803,59 @@
             const [activeTab, setActiveTab] = useState("dashboard");
 
             return (
-                <div className="flex min-h-screen bg-slate-50">
+                <div className="flex min-h-screen bg-[#f8fafc]">
                     {/* Desktop Sidebar */}
-                    <div className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col fixed h-full z-10">
-                        <div className="p-6 border-b border-slate-100">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-emerald-600 text-white p-2 rounded-lg shadow-lg">
-                                    <Icon name="wind" size={24} />
+                    <div className="w-72 bg-white border-r border-slate-200 hidden md:flex flex-col fixed h-full z-10 shadow-sm">
+                        <div className="p-6">
+                            <div className="flex items-center gap-3 mb-8">
+                                <div className="bg-gradient-brand text-white p-2.5 rounded-xl shadow-lg shadow-emerald-200">
+                                    <Icon name="wind" size={28} className="spin-slow" />
                                 </div>
                                 <div>
-                                    <div className="font-bold text-slate-900 leading-tight">GEA-5</div>
-                                    <div className="text-xs text-slate-500 font-medium">Portal Pro</div>
+                                    <div className="font-extrabold text-slate-900 text-lg leading-none tracking-tight">GEA-5</div>
+                                    <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Portal Pro</div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex-1 py-6 space-y-1 overflow-y-auto">
-                            <div className="px-6 text-xs font-bold text-slate-400 uppercase mb-2">Main</div>
-                            <SidebarItem id="dashboard" icon="dashboard" label="Dashboard" active={activeTab === "dashboard"} onClick={setActiveTab} />
-                            <SidebarItem id="grid" icon="zap" label="Grid Capacity" active={activeTab === "grid"} onClick={setActiveTab} />
-                            <SidebarItem id="timeline" icon="calendar" label="Timeline" active={activeTab === "timeline"} onClick={setActiveTab} />
-                            <SidebarItem id="tor" icon="book" label="TOR Guide" active={activeTab === "tor"} onClick={setActiveTab} />
                             
-                            <div className="px-6 text-xs font-bold text-slate-400 uppercase mb-2 mt-6">Tools</div>
-                            <SidebarItem id="calculator" icon="calculator" label="Financial Suite" active={activeTab === "calculator"} onClick={setActiveTab} />
-                            <SidebarItem id="workprogram" icon="hardHat" label="Work Program" active={activeTab === "workprogram"} onClick={setActiveTab} />
-                            <SidebarItem id="checklist" icon="check" label="Compliance" active={activeTab === "checklist"} onClick={setActiveTab} />
+                            <div className="space-y-1">
+                                <div className="px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2 mt-2">Overview</div>
+                                <SidebarItem id="dashboard" icon="dashboard" label="Dashboard" active={activeTab === "dashboard"} onClick={setActiveTab} />
+                                <SidebarItem id="grid" icon="zap" label="Grid Capacity" active={activeTab === "grid"} onClick={setActiveTab} />
+                                <SidebarItem id="timeline" icon="calendar" label="Timeline" active={activeTab === "timeline"} onClick={setActiveTab} />
+                                <SidebarItem id="tor" icon="book" label="TOR Guide" active={activeTab === "tor"} onClick={setActiveTab} />
+                                
+                                <div className="px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2 mt-6">Tools</div>
+                                <SidebarItem id="calculator" icon="calculator" label="Financial Suite" active={activeTab === "calculator"} onClick={setActiveTab} />
+                                <SidebarItem id="workprogram" icon="hardHat" label="Work Program" active={activeTab === "workprogram"} onClick={setActiveTab} />
+                                <SidebarItem id="checklist" icon="check" label="Compliance" active={activeTab === "checklist"} onClick={setActiveTab} />
+                            </div>
+                        </div>
+                        
+                        <div className="mt-auto p-6 border-t border-slate-100">
+                            <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">JP</div>
+                                <div>
+                                    <div className="text-xs font-bold text-slate-900">Juan Perez</div>
+                                    <div className="text-[10px] text-slate-500">Developer ID: 8821</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     {/* Mobile Header */}
-                    <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-slate-200 z-20 px-4 py-3 flex justify-between items-center shadow-sm">
+                    <div className="md:hidden fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md border-b border-slate-200 z-20 px-4 py-3 flex justify-between items-center shadow-sm">
                         <div className="font-bold text-slate-800 flex items-center gap-2">
-                            <div className="bg-emerald-600 text-white p-1.5 rounded-md">
-                                <Icon name="wind" size={18} />
+                            <div className="bg-gradient-brand text-white p-1.5 rounded-lg">
+                                <Icon name="wind" size={20} className="spin-slow" />
                             </div>
-                            <span>GEA-5 Portal</span>
+                            <span className="tracking-tight">GEA-5 Portal</span>
                         </div>
+                        <div className="h-8 w-8 rounded-full bg-slate-100 border border-slate-200"></div>
                     </div>
 
                     {/* Main Content Area */}
-                    <div className="flex-1 md:ml-64 p-4 md:p-8 pt-20 md:pt-8">
-                        <div className="max-w-6xl mx-auto">
+                    <div className="flex-1 md:ml-72 p-4 md:p-8 pt-20 md:pt-8 min-h-screen">
+                        <div className="max-w-5xl mx-auto">
                             {activeTab === "dashboard" && <Dashboard />}
                             {activeTab === "grid" && <GridCapacity />}
                             {activeTab === "calculator" && <Calculators />}
@@ -807,31 +863,28 @@
                             {activeTab === "checklist" && <Checklist />}
                             {activeTab === "tor" && <TORGuide />}
                             {activeTab === "timeline" && (
-                                <div className="bg-white rounded-xl card-shadow overflow-hidden pb-20">
-                                    <div className="p-6 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                                        <div>
-                                            <h2 className="text-lg font-bold text-slate-800">Procurement Timeline</h2>
-                                            <p className="text-xs text-slate-500">Start Date: Nov 24, 2025 (Calculated)</p>
+                                <div className="space-y-6 pb-24">
+                                    <SectionHeader title="Procurement Timeline" subtitle="Start Date: Nov 24, 2025" icon="calendar" />
+                                    <div className="bg-white rounded-2xl card-shadow overflow-hidden">
+                                        <div className="divide-y divide-slate-100">
+                                            {timelineDetails.map((step, i) => (
+                                                <div key={i} className="p-5 flex gap-4 hover:bg-slate-50 transition-colors group">
+                                                    <div className="flex flex-col items-center min-w-[3rem]">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm transition-all ${step.type === "Auction" ? "bg-gradient-brand text-white scale-110" : "bg-white border border-slate-200 text-slate-600 group-hover:border-emerald-200 group-hover:text-emerald-600"}`}>
+                                                            {step.step}
+                                                        </div>
+                                                        {i !== timelineDetails.length - 1 && <div className="w-0.5 h-full bg-slate-100 mt-2 group-hover:bg-slate-200"></div>}
+                                                    </div>
+                                                    <div className="py-1">
+                                                        <div className="flex flex-wrap gap-2 items-center mb-1.5">
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md border border-slate-200">{step.date}</span>
+                                                            <span className="text-[10px] font-mono text-slate-400">{step.day}</span>
+                                                        </div>
+                                                        <h4 className="text-sm font-bold text-slate-800 leading-snug">{step.activity}</h4>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    </div>
-                                    <div className="divide-y divide-slate-100">
-                                        {timelineDetails.map((step, i) => (
-                                            <div key={i} className="p-4 flex gap-4 hover:bg-slate-50">
-                                                <div className="flex flex-col items-center min-w-[3rem]">
-                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step.type === "Auction" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                                                        {step.step}
-                                                    </div>
-                                                    {i !== timelineDetails.length - 1 && <div className="w-0.5 h-full bg-slate-200 mt-2"></div>}
-                                                </div>
-                                                <div>
-                                                    <div className="flex flex-wrap gap-2 items-center mb-1">
-                                                        <span className="text-xs font-bold uppercase text-slate-500 tracking-wide bg-slate-100 px-2 py-0.5 rounded">{step.date}</span>
-                                                        <span className="text-[10px] font-mono text-slate-400">{step.day}</span>
-                                                    </div>
-                                                    <h4 className="text-sm font-semibold text-slate-800">{step.activity}</h4>
-                                                </div>
-                                            </div>
-                                        ))}
                                     </div>
                                 </div>
                             )}
@@ -839,13 +892,13 @@
                     </div>
 
                     {/* Mobile Bottom Navigation */}
-                    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 pb-safe z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                        <div className="flex justify-around items-center">
+                    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 pb-safe z-30 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)] px-2">
+                        <div className="flex justify-between items-center py-1">
                             <MobileNavItem id="dashboard" icon="dashboard" label="Home" active={activeTab === "dashboard"} onClick={setActiveTab} />
                             <MobileNavItem id="timeline" icon="calendar" label="Timeline" active={activeTab === "timeline"} onClick={setActiveTab} />
                             <MobileNavItem id="grid" icon="zap" label="Grid" active={activeTab === "grid"} onClick={setActiveTab} />
                             <MobileNavItem id="calculator" icon="calculator" label="Calc" active={activeTab === "calculator"} onClick={setActiveTab} />
-                            <MobileNavItem id="tor" icon="book" label="TOR" active={activeTab === "tor"} onClick={setActiveTab} />
+                            <MobileNavItem id="tor" icon="book" label="Guide" active={activeTab === "tor"} onClick={setActiveTab} />
                         </div>
                     </div>
                 </div>
