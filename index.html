@@ -69,7 +69,8 @@
                 hardHat: <><path d="M2 18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2z" /><path d="M10 10V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5" /><path d="M4 15v-3a6 6 0 0 1 6-6h0" /><path d="M14 6h0a6 6 0 0 1 6 6v3" /></>,
                 gavel: <><path d="m14 13-7.5 7.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L11 10" /><path d="m16 16 6-6" /><path d="m8 8 6-6" /><path d="m9 7 8 8" /><path d="m21 11-8-8" /></>,
                 download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></>,
-                menu: <><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></>
+                menu: <><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></>,
+                book: <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></>
             };
             
             return (
@@ -128,10 +129,11 @@
 
         const legalProvisions = [
             { title: "Bid Bond Forfeiture", section: "TOR Sec 5.2.2.4", text: "Failure to submit original Bid Bond within 3 days of auction results in disqualification and forfeiture.", severity: "critical" },
-            { title: "Failure to Deliver", section: "Annex C Sec 1.8", text: "Failure to deliver committed capacity is a prohibited act subject to penalties under EPIRA.", severity: "critical" },
+            { title: "Marginal Offer Cap", section: "TOR Sec 8.2.3.2", text: "Installation Target may be increased by up to 100 MW (Cap). Marginal offers exceeding this must scale down.", severity: "warning" },
+            { title: "GET Entitlement", section: "TOR Sec 1.4.3", text: "GET payment commences upon effectivity of COC/PAO. Delay penalties apply for late DCD.", severity: "info" },
+            { title: "Tie-Breaker Rule", section: "TOR Sec 8.2.3.1", text: "In case of price ties, bids are ranked by timestamp (earlier timestamp first).", severity: "info" },
             { title: "Step-In Rights", section: "Annex F Sec 4", text: "Lenders may designate an Assignee to assume the WESC in case of RE Developer default.", severity: "info" },
-            { title: "Grid Advancement", section: "Annex D9.2", text: "Developer must undertake to advance grid connection construction if SIS timeline > DCD.", severity: "warning" },
-            { title: "PPA Queuing", section: "TOR Sec 9.1.5", text: "Port usage is subject to PPA queuing. Extensions solely due to Developer pay penalties.", severity: "warning" }
+            { title: "Grid Advancement", section: "Annex D9.2", text: "Developer must undertake to advance grid connection construction if SIS timeline > DCD.", severity: "warning" }
         ];
 
         const checklistData = [
@@ -344,97 +346,254 @@
         };
 
         const Calculators = () => {
+            const [activeTool, setActiveTool] = useState('basic'); // basic, marginal, get
+            
+            // Basic
             const [mw, setMw] = useState(100);
             const [capex, setCapex] = useState(150); // M PHP per MW
-            const [delayDays, setDelayDays] = useState(30);
             const [bidPrice, setBidPrice] = useState(4.0000);
 
+            // Marginal
+            const [remTarget, setRemTarget] = useState(500);
+            const [bidCap, setBidCap] = useState(550);
+
+            // GET
+            const [dcdDate, setDcdDate] = useState("2029-03-30");
+            const [codDate, setCodDate] = useState("2029-09-30");
+            const [delayReason, setDelayReason] = useState("fault"); // Default to fault, since "none" is calculated
+
+            // --- Basic Calculations ---
             const bidBond = mw * 100000;
             const projectCost = mw * capex * 1000000;
             const perfBond = projectCost * 0.02;
-            
-            const onePercentPB = perfBond * 0.01;
-            const dailyPenalty = onePercentPB / 20;
-            const totalPenalty = dailyPenalty * delayDays;
-
             const fmt = (n) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(n);
 
+            // --- Marginal Logic (Sec 8.2.3) ---
+            const MARGINAL_BUFFER = 100; // MW
+            const excess = bidCap - remTarget;
+            const isMarginal = excess > 0;
+            const withinBuffer = excess <= MARGINAL_BUFFER;
+            const awardedMarginal = isMarginal ? (withinBuffer ? bidCap : remTarget + MARGINAL_BUFFER) : bidCap;
+            const curtailedMarginal = bidCap - awardedMarginal;
+
+            // --- GET Logic (Sec 1.4.3 & 10.6.7.4) ---
+            const dcd = new Date(dcdDate);
+            const cod = new Date(codDate);
+            const diffTime = cod - dcd;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            const isDelayed = diffDays > 0;
+
+            let penaltyRate = 0;
+            let penaltyDesc = "No Penalty";
+            let sdpStatus = "Full 20 Years";
+            let getStart = "Upon COD";
+            let isRevoked = false;
+
+            if (!isDelayed) {
+                // COD before or equal to DCD
+                penaltyDesc = "None (Early/On-time)";
+                getStart = "Upon DCD (Paid Market Price prior to DCD)";
+            } else {
+                // Delay exists
+                if (delayReason === "forceMajeure") {
+                    penaltyDesc = "None (Force Majeure)";
+                    sdpStatus = "Full 20 Years (Extended)";
+                    getStart = "Upon COD";
+                } else { // default to fault if not FM
+                    getStart = "Upon COD";
+                    if (diffDays < 365) {
+                        penaltyRate = 0.05; // 1/20 of 1%
+                        penaltyDesc = "1/20 of 1% of PB per day";
+                        sdpStatus = "Full 20 Years";
+                    } else if (diffDays < 1095) { // < 3 years
+                        penaltyRate = 0.1; // 1/10 of 1%
+                        penaltyDesc = "1/10 of 1% of PB per day";
+                        sdpStatus = `Reduced by ${diffDays - 365} days`;
+                    } else {
+                        isRevoked = true;
+                        penaltyDesc = "Full PB Forfeiture";
+                        sdpStatus = "Contract Revoked";
+                        getStart = "N/A";
+                    }
+                }
+            }
+
+            const penaltyAmount = isRevoked ? perfBond : (perfBond * (penaltyRate / 100) * (diffDays > 0 ? diffDays : 0));
+
             return (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20">
-                    <div className="space-y-6">
-                        <div className="bg-white rounded-xl card-shadow p-6">
-                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <Icon name="calculator" /> Project Parameters
-                            </h3>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Offered Capacity (MW)</label>
-                                    <input type="number" value={mw} onChange={e => setMw(Number(e.target.value))} className="input-base" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Est. Project Cost (PHP Million/MW)</label>
-                                    <input type="number" value={capex} onChange={e => setCapex(Number(e.target.value))} className="input-base" />
-                                    <p className="text-xs text-slate-400 mt-1">*Indicative. Official cost issued via Bid Bulletin.</p>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bid Price (PHP/kWh)</label>
-                                    <input type="number" step="0.0001" value={bidPrice} onChange={e => setBidPrice(e.target.value)} className="input-base" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-xl card-shadow p-6 border-t-4 border-red-500">
-                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <Icon name="alert" className="text-red-500"/> Delay Penalty Simulator
-                            </h3>
-                            <div className="mb-4">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Hypothetical Delay (Days)</label>
-                                <input type="range" min="1" max="365" value={delayDays} onChange={e => setDelayDays(Number(e.target.value))} className="w-full accent-red-500" />
-                                <div className="text-right text-sm font-bold text-red-600">{delayDays} Days</div>
-                            </div>
-                            <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                                <span className="text-sm text-red-800">Total Penalty</span>
-                                <span className="text-lg font-bold text-red-700">{fmt(totalPenalty)}</span>
-                            </div>
-                            <p className="text-xs text-red-400 mt-2">Based on TOR 10.6.7.4.1 (Delay &lt; 1 Year). Penalties double for delay > 1 year.</p>
-                        </div>
+                <div className="pb-20">
+                    <div className="flex gap-4 mb-6 border-b border-slate-200 pb-2 overflow-x-auto">
+                        <button onClick={() => setActiveTool('basic')} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap ${activeTool === 'basic' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Basic Financials</button>
+                        <button onClick={() => setActiveTool('marginal')} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap ${activeTool === 'marginal' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Marginal Offer Check</button>
+                        <button onClick={() => setActiveTool('get')} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap ${activeTool === 'get' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>GET & Penalty Sim</button>
                     </div>
 
-                    <div className="space-y-6">
-                        <div className="bg-slate-900 text-white rounded-xl card-shadow p-6 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-10">
-                                <Icon name="fileText" size={100} />
-                            </div>
-                            <h3 className="font-bold text-slate-300 mb-6">Financial Requirements</h3>
-                            
-                            <div className="space-y-6 relative z-10">
-                                <div>
-                                    <div className="text-sm text-slate-400 uppercase tracking-wider">Bid Bond (Cash/Manager's Check)</div>
-                                    <div className="text-3xl font-bold text-emerald-400 mt-1">{fmt(bidBond)}</div>
-                                    <div className="text-xs text-slate-500 mt-1">Valid for 120 Days from Auction</div>
+                    {activeTool === 'basic' && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="bg-white rounded-xl card-shadow p-6">
+                                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <Icon name="calculator" /> Project Parameters
+                                </h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Offered Capacity (MW)</label>
+                                        <input type="number" value={mw} onChange={e => setMw(Number(e.target.value))} className="input-base" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Est. Project Cost (PHP Million/MW)</label>
+                                        <input type="number" value={capex} onChange={e => setCapex(Number(e.target.value))} className="input-base" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bid Price (PHP/kWh)</label>
+                                        <input type="number" step="0.0001" value={bidPrice} onChange={e => setBidPrice(e.target.value)} className="input-base" />
+                                    </div>
                                 </div>
-                                
-                                <div className="w-full h-px bg-slate-700"></div>
-
-                                <div>
-                                    <div className="text-sm text-slate-400 uppercase tracking-wider">Performance Bond (2%)</div>
-                                    <div className="text-3xl font-bold text-white mt-1">{fmt(perfBond)}</div>
-                                    <div className="text-xs text-slate-500 mt-1">Based on Total Project Cost: {fmt(projectCost)}</div>
+                            </div>
+                            <div className="bg-slate-900 text-white rounded-xl card-shadow p-6 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-10">
+                                    <Icon name="fileText" size={100} />
+                                </div>
+                                <h3 className="font-bold text-slate-300 mb-6">Bond Requirements</h3>
+                                <div className="space-y-6 relative z-10">
+                                    <div>
+                                        <div className="text-sm text-slate-400 uppercase tracking-wider">Bid Bond (Cash/Manager's Check)</div>
+                                        <div className="text-3xl font-bold text-emerald-400 mt-1">{fmt(bidBond)}</div>
+                                        <div className="text-xs text-slate-500 mt-1">Valid for 120 Days</div>
+                                    </div>
+                                    <div className="w-full h-px bg-slate-700"></div>
+                                    <div>
+                                        <div className="text-sm text-slate-400 uppercase tracking-wider">Performance Bond (2%)</div>
+                                        <div className="text-3xl font-bold text-white mt-1">{fmt(perfBond)}</div>
+                                        <div className="text-xs text-slate-500 mt-1">Based on Total Project Cost: {fmt(projectCost)}</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                    )}
 
-                        <div className="bg-white rounded-xl card-shadow p-6">
-                            <h3 className="font-bold text-slate-800 mb-4">Bid Form Preview</h3>
-                            <div className="font-mono text-xs bg-slate-50 p-4 rounded border border-slate-200">
-                                <p><strong>PROJECT:</strong> [Your Project Name]</p>
-                                <p><strong>CAPACITY:</strong> {mw.toFixed(3)} MW</p>
-                                <p><strong>PRICE:</strong> PHP {Number(bidPrice).toFixed(4)} / kWh</p>
-                                <p><strong>BOND:</strong> {fmt(bidBond)}</p>
-                                <p className="mt-2 pt-2 border-t border-slate-200 text-slate-400">Annex D6 Compliant Format</p>
+                    {activeTool === 'marginal' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-white rounded-xl card-shadow p-6 border-l-4 border-emerald-500">
+                                <h3 className="font-bold text-slate-800 mb-4">Marginal Offer Analysis</h3>
+                                <p className="text-xs text-slate-500 mb-4">Based on TOR Section 8.2.3.2. Checks if your bid fits within the remaining allocation plus the 100MW buffer.</p>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Remaining Auction Volume (MW)</label>
+                                        <input type="number" value={remTarget} onChange={e => setRemTarget(Number(e.target.value))} className="input-base" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Your Bid Size (MW)</label>
+                                        <input type="number" value={bidCap} onChange={e => setBidCap(Number(e.target.value))} className="input-base" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-xl card-shadow p-6">
+                                <h3 className="font-bold text-slate-800 mb-6">Result</h3>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center pb-2 border-b">
+                                        <span className="text-slate-500 text-sm">Marginal Status</span>
+                                        <span className={`font-bold ${isMarginal ? 'text-amber-500' : 'text-emerald-600'}`}>
+                                            {isMarginal ? "Marginal Bid" : "Within Target"}
+                                        </span>
+                                    </div>
+                                    {isMarginal && (
+                                        <>
+                                        <div className="flex justify-between items-center pb-2 border-b">
+                                            <span className="text-slate-500 text-sm">Excess over Target</span>
+                                            <span className="font-mono text-red-500">+{excess} MW</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pb-2 border-b">
+                                            <span className="text-slate-500 text-sm">Accepted Capacity</span>
+                                            <span className="font-bold text-emerald-600 text-xl">{awardedMarginal} MW</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pb-2 border-b">
+                                            <span className="text-slate-500 text-sm">Curtailed/Rejected</span>
+                                            <span className="font-mono text-red-500">{curtailedMarginal} MW</span>
+                                        </div>
+                                        <div className="text-xs bg-slate-100 p-2 rounded text-slate-600 mt-2">
+                                            {withinBuffer 
+                                                ? "Passed: Excess is within the 100 MW Cap." 
+                                                : "Curtailed: Bid exceeds the 100 MW Cap. You must agree to reduce capacity to be accepted."}
+                                        </div>
+                                        </>
+                                    )}
+                                    {!isMarginal && (
+                                        <div className="text-center py-8 text-emerald-600 font-bold">
+                                            Bid is fully accepted within the Installation Target.
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
+
+                    {activeTool === 'get' && (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-1 bg-white rounded-xl card-shadow p-6">
+                                <h3 className="font-bold text-slate-800 mb-4">Scenario Inputs</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Committed DCD</label>
+                                        <input type="date" value={dcdDate} onChange={e => setDcdDate(e.target.value)} className="input-base" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Actual COD</label>
+                                        <input type="date" value={codDate} onChange={e => setCodDate(e.target.value)} className="input-base" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cause of Delay</label>
+                                        {isDelayed ? (
+                                            <select value={delayReason} onChange={e => setDelayReason(e.target.value)} className="input-base">
+                                                <option value="forceMajeure">Force Majeure (Sec 13)</option>
+                                                <option value="fault">Bidder Default (Sec 10.6.7.4)</option>
+                                            </select>
+                                        ) : (
+                                            <div className="input-base bg-slate-50 text-slate-500 italic flex items-center">
+                                                N/A (Project is On-Time/Early)
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="pt-4 text-xs text-slate-400">
+                                        Assumed Perf. Bond: {fmt(perfBond)}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="lg:col-span-2 bg-white rounded-xl card-shadow p-6">
+                                <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                                    <Icon name="gavel" className="text-indigo-500" /> Impact Analysis (TOR Sec 1.4.3)
+                                </h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-4 bg-slate-50 rounded-lg">
+                                        <div className="text-xs text-slate-500 uppercase font-bold">GET Entitlement</div>
+                                        <div className="font-bold text-slate-900 mt-1">{getStart}</div>
+                                    </div>
+                                    <div className={`p-4 rounded-lg ${diffDays > 0 && delayReason === 'fault' ? 'bg-red-50' : 'bg-green-50'}`}>
+                                        <div className="text-xs text-slate-500 uppercase font-bold">Delay Duration</div>
+                                        <div className={`font-bold mt-1 ${diffDays > 0 ? 'text-red-700' : 'text-green-700'}`}>
+                                            {diffDays > 0 ? `${diffDays} Days Late` : "On Time / Early"}
+                                        </div>
+                                    </div>
+                                    <div className="p-4 bg-slate-50 rounded-lg">
+                                        <div className="text-xs text-slate-500 uppercase font-bold">Supply Delivery Period</div>
+                                        <div className="font-bold text-slate-900 mt-1">{sdpStatus}</div>
+                                    </div>
+                                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                        <div className="text-xs text-slate-500 uppercase font-bold">Penalty / Bond Draw</div>
+                                        <div className="text-xs text-slate-500 mt-1">{penaltyDesc}</div>
+                                        {diffDays > 0 && delayReason === 'fault' && (
+                                            <div className="font-bold text-red-600 text-lg mt-1">
+                                                {fmt(penaltyAmount)}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="mt-4 text-xs text-slate-400 italic">
+                                    *Calculations based on 100MW example project. Actual penalty depends on specific bond amount.
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -530,6 +689,70 @@
             );
         }
 
+        const TORGuide = () => (
+            <div className="space-y-6 pb-20">
+                <div className="bg-white rounded-xl card-shadow p-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="bg-slate-900 text-white p-2 rounded-lg">
+                            <Icon name="book" size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800">Terms of Reference (TOR) Structure</h2>
+                            <p className="text-sm text-slate-500">Green Energy Auction - 5</p>
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[
+                            { id: "A", title: "Auction Design", desc: "Mechanism, rules, and procedures." },
+                            { id: "B", title: "Bonds", desc: "Templates for Bid & Performance Bonds." },
+                            { id: "C", title: "Instruction to Bidders", desc: "Detailed guidelines for participation." },
+                            { id: "D", title: "Bidding Data & Forms", desc: "Registration forms, Affidavits (D1-D9)." },
+                            { id: "E", title: "Grid Capacity", desc: "Available transmission capacity 2024-2030." },
+                            { id: "F", title: "Contract Templates", desc: "WESC/OsWESC and Step-In Rights." },
+                            { id: "G", title: "Port Availability", desc: "List of PPA-administered ports." },
+                            { id: "H", title: "Port Conformity", desc: "Template for Queuing Order agreement." }
+                        ].map(annex => (
+                            <div key={annex.id} className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Annex {annex.id}</span>
+                                <h3 className="font-bold text-slate-800 mt-2">{annex.title}</h3>
+                                <p className="text-xs text-slate-500 mt-1">{annex.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-white rounded-xl card-shadow p-6">
+                        <h3 className="font-bold text-slate-800 mb-4 border-b pb-2">Sec 8.2.3: Tie-Breakers</h3>
+                        <div className="space-y-4 text-sm text-slate-600">
+                            <div>
+                                <strong className="block text-slate-900">1. Timestamp Rule</strong>
+                                <p>If Price Offers are equal, the bid submitted earlier (based on timestamp) ranks higher.</p>
+                            </div>
+                            <div>
+                                <strong className="block text-slate-900">2. Marginal Offer Tie</strong>
+                                <p>If Marginal Offers are tied in Price AND Timestamp, capacity is distributed proportionately.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-xl card-shadow p-6">
+                        <h3 className="font-bold text-slate-800 mb-4 border-b pb-2">Sec 8.2.3: Marginal Offer</h3>
+                        <div className="space-y-4 text-sm text-slate-600">
+                            <div>
+                                <strong className="block text-slate-900">The 100 MW Cap Rule</strong>
+                                <p>The Installation Target may be exceeded by up to 100 MW to accommodate a Marginal Bid.</p>
+                            </div>
+                            <div>
+                                <strong className="block text-slate-900">Condition</strong>
+                                <p>If a bid exceeds this 100 MW buffer, it is only accepted if the bidder agrees to curtail their capacity to fit the buffer.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
         // --- Main Layout ---
 
         const App = () => {
@@ -555,6 +778,7 @@
                             <SidebarItem id="dashboard" icon="dashboard" label="Dashboard" active={activeTab === "dashboard"} onClick={setActiveTab} />
                             <SidebarItem id="grid" icon="zap" label="Grid Capacity" active={activeTab === "grid"} onClick={setActiveTab} />
                             <SidebarItem id="timeline" icon="calendar" label="Timeline" active={activeTab === "timeline"} onClick={setActiveTab} />
+                            <SidebarItem id="tor" icon="book" label="TOR Guide" active={activeTab === "tor"} onClick={setActiveTab} />
                             
                             <div className="px-6 text-xs font-bold text-slate-400 uppercase mb-2 mt-6">Tools</div>
                             <SidebarItem id="calculator" icon="calculator" label="Financial Suite" active={activeTab === "calculator"} onClick={setActiveTab} />
@@ -581,6 +805,7 @@
                             {activeTab === "calculator" && <Calculators />}
                             {activeTab === "workprogram" && <WorkProgram />}
                             {activeTab === "checklist" && <Checklist />}
+                            {activeTab === "tor" && <TORGuide />}
                             {activeTab === "timeline" && (
                                 <div className="bg-white rounded-xl card-shadow overflow-hidden pb-20">
                                     <div className="p-6 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -619,8 +844,8 @@
                             <MobileNavItem id="dashboard" icon="dashboard" label="Home" active={activeTab === "dashboard"} onClick={setActiveTab} />
                             <MobileNavItem id="timeline" icon="calendar" label="Timeline" active={activeTab === "timeline"} onClick={setActiveTab} />
                             <MobileNavItem id="grid" icon="zap" label="Grid" active={activeTab === "grid"} onClick={setActiveTab} />
-                            <MobileNavItem id="workprogram" icon="hardHat" label="Plan" active={activeTab === "workprogram"} onClick={setActiveTab} />
                             <MobileNavItem id="calculator" icon="calculator" label="Calc" active={activeTab === "calculator"} onClick={setActiveTab} />
+                            <MobileNavItem id="tor" icon="book" label="TOR" active={activeTab === "tor"} onClick={setActiveTab} />
                         </div>
                     </div>
                 </div>
